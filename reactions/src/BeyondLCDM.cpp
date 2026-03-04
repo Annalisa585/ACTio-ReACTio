@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <functional>
 
+#include <fstream>
+#include <iomanip>
+
 using std::cref;
 using std::bind;
 
@@ -68,7 +71,7 @@ initn_rsd  */
 // 11: EFTofDE with full mu & linear G_eff for non-linear scales [assumes gamma2 = gamma3 = 0]
 // 12: EFTofDE with full mu & Phenomenological G_eff for non-linear scales [assumes gamma2 = gamma3 = 0]
 // 13: Model independent parametrisation: CPL {w0,wa} for background, growth index gamma for linear perturbations, Phenomenological G_eff for nonlinear scales
-// 14: Cubic Galileon
+// 14: Generalised Cubic Galileon
 // 15: QCDM
 // 16: K-mouflage as in 1403.5424
 // 17: K-mouflage with nPPF [1608.00522]
@@ -199,7 +202,6 @@ double riccibackground(double a, double omega0, double extpars[], int model){
 		case 12:
 		/* EFTofDE unscreened and full k-dependence in linear modification */
 		return  3. * pow2(h0) * (omega0 + 4. * a3 * (1. - omega0)) / a3;
-
 
 		default:
 				warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -652,6 +654,10 @@ double bespokehub(double a, double omega0, double extpars[], int model){
 			/* K-mouflage with nPPF */
 				Aphi = conf_fac(kmouflage_phi(a),extpars[3]) ;
 				return sqrt(kmouflage_hub2_n2(a, kmouflage_phid(a), omega0, extpars[1], extpars[2], Aphi)/pow2(a));
+			
+			case 18:
+			/*ADI*/
+			return 0;
 
 
 		default:
@@ -676,7 +682,7 @@ double bespokehubd(double a, double omega0, double extpars[], int model){
 		 return HA1(a,omega0);
 
 	 case 14:
-		/* CG  */
+		/* GCG  */
 			return 0; // we use analytic form - see below
 
 		case 15:
@@ -690,6 +696,10 @@ double bespokehubd(double a, double omega0, double extpars[], int model){
 		case 17:
   		/* K-mouflage with nPPF  */
  			return 0; // we use analytic form - see below
+
+		case 18:
+		/* GCG */
+		return 0; // we use analytic form - see below
 
 
 		default:
@@ -724,6 +734,9 @@ double bespokehubdd(double a, double omega0, double extpars[], int model){
 
 		case 17:
 		 return 0; // we use analytic form - see below
+
+		case 18:
+			return 0; // we use analytic form - see below
 
 		default:
 				warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -817,6 +830,12 @@ double HAg(double a, double omega0, double extpars[], int model){
 			/* K-mouflage with nPPF*/
 			return myhubble(a);
 
+			case 18:
+			/*ADI*/
+			A = -3.*(1.+extpars[0]+extpars[1]);
+			omegaf = pow(a,A)*exp(3.*(-1.+a)*extpars[1]);
+			omegaL= (1.-omega0)*omegaf;
+			return  sqrt(omega0/pow(a,3)+omegaL);
 
 			default:
 					warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -940,6 +959,12 @@ double HA1g(double a, double omega0, double extpars[], int model){
 
 		return 1./ (a2) * (var1 - h2);
 
+		case 18:
+		/* ADI */
+		A = -3.*(1.+extpars[0]+extpars[1]);
+	  omegaf = pow(a,A)*exp(3*(-1.+a)*extpars[1]);
+		omegaL= (1.-omega0)*omegaf;
+	  return -3.*omega0/(2.*pow(a,3)) + (A+3.*a*extpars[1])*omegaL/2.;
 
 		default:
 				warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -1055,6 +1080,10 @@ double myfricF(double a, double omega0, double extpars[], int model){
 		/* K-mouflage with nPPF */
 		return   extpars[3] * kmouflage_phid(a) * HAg(a,omega0,extpars,model);
 
+		case 18:
+		/* ADI */
+		return 0.;
+
 
 		default:
 					warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -1077,6 +1106,7 @@ double myfricF(double a, double omega0, double extpars[], int model){
 double mu(double a, double k0, double omega0, double extpars[], int model){
 	double h0 = 1./2997.92458;
 	double var1, var2, var3, alphaofa[5],dalphaofa[5],ddalphaofa[5];
+	double A, omegaf, omegaL, omegaDE, w_DE, result;
 	double myA[3],myB[3],myC[4],myf[4];
 	double hub, hubd, hubdd; // hubble and its derivatives
 
@@ -1600,6 +1630,54 @@ double mu(double a, double k0, double omega0, double extpars[], int model){
 
 	 		return  conf_fac(kmouflage_phi(a),extpars[3]) * (1. + 2. * pow2(extpars[3])/var2);
 
+			case 18:
+				/* ADI */
+				// Hubble and its derivative
+				hub = HAg(a,omega0,extpars,model);
+				////HA2g = -dH/dt/H^2 = -a dH/da / H
+				hubd = HA2g(a,omega0,extpars,model);
+				A = -3.*(1.+extpars[0]+extpars[1]);
+				omegaf = pow(a,A)*exp(3.*(-1.+a)*extpars[1]);
+				omegaL= (1.-omega0)*omegaf;
+				omegaDE = omegaL/pow2(hub);
+				w_DE= extpars[0] + extpars[1]*(1.-a);
+
+				//alphaB
+				alphaofa[0] = extpars[2]*omegaDE/(1-omega0);
+				// d/dt alphaB/H
+				dalphaofa[0] = alphaofa[0]*(-3.*(1.+w_DE)+2.*hubd);
+
+				//M2*/M_pl2
+				alphaofa[1] = 1. + extpars[3]*omegaDE/(1-omega0);
+
+				//alphaM
+				alphaofa[2] = (alphaofa[1]-1)*(-3.*(1.+w_DE)+2.*hubd)/alphaofa[1];
+
+				// alphacs2
+				var1 = 2.*hubd-3.*omega0/(pow3(a)*pow2(hub)*alphaofa[1]);
+				var2 = alphaofa[0] - hubd*alphaofa[0] -0.5*pow2(alphaofa[0]) + dalphaofa[0] + 2.*alphaofa[2]-(alphaofa[0]*alphaofa[2]);
+				var3 = var1 + var2;
+
+				result = (1./alphaofa[1])*(1.+2.*pow2((0.5)*alphaofa[0]+alphaofa[2])/var3); 
+				{
+    				static std::ofstream file_mu("mu_log_proof1.csv", std::ios::app);
+
+    				// Scrive header solo la prima volta
+    				static bool header_written = false;
+   					 if (!header_written) {
+       					 file_mu << "a,M2_over_Mpl2,result\n";
+       					 header_written = true;
+    					}
+
+    				file_mu << std::setprecision(15)
+            			<< a << ","
+						<< alphaofa[1] << ","
+            			<< result << "\n";
+				}		
+
+				return result;
+
+
 
 
 		default:
@@ -1696,6 +1774,10 @@ double gamma2(double a, double omega0, double k0, double k1, double k2, double u
 			case 17:
 			/* K-mouflage with nPPF */
 			return 0;
+
+			case 18:
+			/* ADI */
+			return 0.;
 
 		default:
 		warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -1844,6 +1926,10 @@ double gamma3(double a, double omega0, double k0, double k1, double k2, double k
 
 		return -9./2. * var3 * pow3(var5 * var4) * pow(extpars[3]/var2,4.) * pow2(hub/extpars[1]) * pow2(hub*h0/a) *var6 ;
 
+		case 18:
+		/* ADI */
+		return 0.;
+
 
 		default:
 		warning("BeyondLCDM: invalid model choice, model = %d \n", model);
@@ -1858,7 +1944,8 @@ double mymgF(double a, double yh, double yenv, double Rth, double omega0, double
 	double dod, dod2, dRRth, fr0, var1, var2, var3, term1, term2, term3,hub,hubd;
 	double betadgp,xm3,xterm,delta,Mvir;
 	double Aphi;
-	double alphaofa[5],dalphaofa[5],lambda2; //EFTofDE
+	double alphaofa[5],dalphaofa[5]; //EFTofDE
+	double A, omegaf, omegaL, omegaDE, w_DE, result, xterm1, xterm2;
 	switch(model) {
 	  case 1:
 		/* LCDM */
@@ -2058,6 +2145,57 @@ double mymgF(double a, double yh, double yenv, double Rth, double omega0, double
 		default:
 					warning("BeyondLCDM: invalid model choice, model = %d \n", model);
 				  return 0;
+				  
+			case 18:
+				/* ADI */
+				// Hubble and its derivative
+				hub = HAg(a,omega0,extpars,model);
+				////HA2g = -dH/dt/H^2 = -a dH/da / H
+				hubd = HA2g(a,omega0,extpars,model);
+				A = -3.*(1.+extpars[0]+extpars[1]);
+				omegaf = pow(a,A)*exp(3.*(-1.+a)*extpars[1]);
+				omegaL= (1.-omega0)*omegaf;
+				omegaDE = omegaL/pow2(hub);
+				w_DE= extpars[0] + extpars[1]*(1.-a);
+
+				//alphaB
+				alphaofa[0] = extpars[2]*omegaDE/(1-omega0);
+				// d/dt alphaB/H
+				dalphaofa[0] = alphaofa[0]*(-3.*(1.+w_DE)+2.*hubd);
+
+				//M2*/M_pl2
+				alphaofa[1] = 1. + extpars[3]*omegaDE/(1-omega0);
+
+				//alphaM
+				alphaofa[2] = (alphaofa[1]-1)*(-3.*(1.+w_DE)+2.*hubd)/alphaofa[1];
+
+				// alphacs2
+				var1 = 2.*hubd-3.*omega0/(pow3(a)*pow2(hub)*alphaofa[1]);
+				var2 = alphaofa[0] - hubd*alphaofa[0] -0.5*pow2(alphaofa[0]) + dalphaofa[0] + 2.*alphaofa[2]-(alphaofa[0]*alphaofa[2]);
+				var3 = var1 + var2;
+
+				delta = (1.+delta_initial)/pow3(yh) - 1.;
+				xterm1 = (alphaofa[0]+alphaofa[2])/var3; //lambda^2*H
+				xterm2 = 2.*(1./alphaofa[1])*(0.5*alphaofa[0]+alphaofa[2])/var3; //beta^2*H
+				xm3 = 4.*omega0 * xterm1 * xterm2 * delta/(pow3(a)*pow2(hub)); //(R_V/R)^3
+
+				result = (1./alphaofa[1])*(1. + 4.*(pow2((0.5*alphaofa[0])+alphaofa[2])/var3)*(sqrt(1.+xm3)-1.)/xm3)-1.;
+				 {
+					static std::ofstream file_mymgF("mymgF_log_proof1.csv", std::ios::app);
+
+					// Scrive header solo la prima volta
+					static bool header_written = false;
+   					 if (!header_written) {
+	   					 file_mymgF << "a,M2_over_Mpl2,result\n";
+	   					 header_written = true;
+						}
+
+					file_mymgF << std::setprecision(15)
+						<< a << ","
+						<< alphaofa[1] << ","
+						<< result << "\n";
+				}	
+				return result;
   }
 }
 
@@ -2164,6 +2302,11 @@ double  WEFF(double a, double omega0, double extpars[], int model){
 
 		 return -pow2(extpars[1])/3. * (2.*var2 + h2*pow2(kmouflage_phid(a)/extpars[1])*var3);
 
+
+		case 18:
+		/* ADI */
+		h2 = pow2(HAg(a,omega0,extpars,model));
+		return -(1.+3.*(extpars[0]+(1.-a)*extpars[1]))*(h2-omega0/pow3(a));
 
 		 default:
 				 warning("BeyondLCDM: invalid model choice, model = %d \n", model);
