@@ -12,9 +12,13 @@ libtool
 *.so
 *.la
 *.lo
+*.csv
+*.dat
+*.log
 
 lib
 src/.deps
 src/.libs
-
+include/*
+share/*
 cosmosis_output
