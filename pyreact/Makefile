@@ -7,8 +7,8 @@ CFLAGS += -fPIC
 CXXFLAGS += -Wall -fPIC -std=c++11
 LDFLAGS  += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial
 
-LDFLAGS +=
-CPPFLAGS +=
+LDFLAGS += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial -L/mnt/c/Users/annal/REACT/sundials-install/lib
+CPPFLAGS += -I/mnt/c/Users/annal/REACT/sundials-install/include
 
 # clang uses a different libstdc++ than GCC. Also remove OpenMP when using clang
 ifneq (,$(findstring clang,$(shell '$(CXX)' -v 2>&1)))
