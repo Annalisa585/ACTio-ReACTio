@@ -1,0 +1,4 @@
+Se c'è il 'clock skew detected' vai nella directory 'ACTio-ReACTio/reactions' ed esegui
+i comandi make install e poi make e dovrebbe risolversi. Questo ti permette anche di ricompilare.
+
+Puoi avviare il file reaction_ADI.sh con il comando: './reactio_ADI.sh'
